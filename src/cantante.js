@@ -6,10 +6,10 @@ const moment = require('moment-timezone');
 async function emitirNumero(sala, numero, secuencia) {
     try {
         const fechaHora = moment().format('YYYY-MM-DD HH:mm:ss');
-        const evento = `sala_${sala}`;
+        const evento = `nums_${sala}`;
         const mensaje = {
-            secuencia,
-            numero,
+            sec: secuencia,
+            num: numero,
             fechaHora
         };
 
