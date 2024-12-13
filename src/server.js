@@ -21,7 +21,7 @@ app.use(express.json());
 
 // Middleware de validación
 const validateRequest = (req, res, next) => {
-    const { sala, intervalo, qty = 75 } = req.body;
+    const { sala, intervalo, qty = 75, secs_to_start = 0 } = req.body;
 
     // Validar que sala sea un número entero
     if (!Number.isInteger(sala)) {
@@ -33,27 +33,36 @@ const validateRequest = (req, res, next) => {
         return res.status(400).json({ error: 'intervalo debe ser un número entero entre 5 y 60' });
     }
 
+    // Validar que secs_to_start sea un número entero no negativo
+    if (!Number.isInteger(secs_to_start) || secs_to_start < 0) {
+        return res.status(400).json({ error: 'secs_to_start debe ser un número entero no negativo' });
+    }
+
     // Si pasa todas las validaciones, continuar
     next();
 };
 
+
 // Ruta POST que acepta el JSON
 app.post('/api/datos', validateRequest, (req, res) => {
-    const { sala, intervalo, qty = 75 } = req.body;
+    const { sala, intervalo, qty = 75, secs_to_start = 0 } = req.body;
     
     console.log('Datos recibidos:', {
         sala,
         intervalo,
-        qty
+        qty,
+        secs_to_start
     });
 
-    cantante.iniciarCantante(sala, intervalo, qty);
+    cantante.iniciarCantante(sala, intervalo, qty, secs_to_start);
 
     res.json({
         message: 'Cantante iniciado correctamente',
-        datos: { sala, intervalo, qty }
+        datos: { sala, intervalo, qty, secs_to_start }
     });
 });
+
+
 app.get('/api/test-socket', async (req, res) => {
     try {
         console.log('Iniciando prueba de socket...');
@@ -87,6 +96,7 @@ app.get('/api/test-socket', async (req, res) => {
         });
     }
 });
+
 //Inicialr el servidor
 app.listen(port, () => {
     console.log(`Servidor corriendo en http://localhost:${port}`);

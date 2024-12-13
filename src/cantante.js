@@ -1,4 +1,4 @@
-// Almacena los intervalos activos por sala
+// cantante.js
 const intervalosActivos = new Map();
 const EventosService = require('./eventos'); 
 const moment = require('moment-timezone');
@@ -33,6 +33,34 @@ async function emitirNumero(sala, numero, secuencia) {
     }
 }
 
+async function emitirComando(sala, comando) {
+    try {
+        const fechaHora = moment().format('YYYY-MM-DD HH:mm:ss');
+        const evento = `cmd_${sala}`;
+        const mensaje = {
+            cmd: comando,
+            fechaHora
+        };
+
+        console.log(`📤 Emitiendo comando al socket - Evento: ${evento}`, mensaje);
+
+        const resultado = await EventosService.emitirEvento(
+            'CANTANTE',
+            evento,
+            new Date(),
+            mensaje
+        );
+
+        if (resultado) {
+            console.log(`✅ Comando emitido correctamente al socket - Sala ${sala}`);
+        } else {
+            console.log(`❌ Error al emitir comando al socket - Sala ${sala}`);
+        }
+
+    } catch (error) {
+        console.error(`Error al emitir comando para sala ${sala}:`, error);
+    }
+}
 
 function generarNumeroUnico(numerosEmitidos, maximo) {
     if (numerosEmitidos.size >= maximo) {
@@ -47,48 +75,46 @@ function generarNumeroUnico(numerosEmitidos, maximo) {
     return numero;
 }
 
-function iniciarCantante(sala, intervalo, qty) {
+function iniciarCantante(sala, intervalo, qty, secs_to_start = 0) {
     if (intervalosActivos.has(sala)) {
         clearInterval(intervalosActivos.get(sala).intervaloId);
     }
 
     const numerosEmitidos = new Set();
     
-    console.log(`[Sala ${sala}] Iniciando cantante - Intervalo: ${intervalo}s, Cantidad máxima: ${qty}`);
+    console.log(`[Sala ${sala}] Iniciando cantante - Espera inicial: ${secs_to_start}s, Intervalo: ${intervalo}s, Cantidad máxima: ${qty}`);
 
-    // Emitir primer número inmediatamente
+    // Esperar secs_to_start segundos antes de iniciar la secuencia
     setTimeout(async () => {
-        const primerNumero = generarNumeroUnico(numerosEmitidos, qty);
-        if (primerNumero) {
-            numerosEmitidos.add(primerNumero);
-            console.log(`[Sala ${sala}] Primer número emitido: ${primerNumero} (1/${qty})`);
-            await emitirNumero(sala, primerNumero, 1);
-        }
-    }, 0);
+        // Emitir evento de inicio
+        await emitirComando(sala, 'starting');
+        console.log(`[Sala ${sala}] Enviado comando de inicio`);
 
-    // Configurar el intervalo para los siguientes números
-    const intervaloId = setInterval(async () => {
-        const numero = generarNumeroUnico(numerosEmitidos, qty);
-        
-        if (numero === null) {
-            console.log(`[Sala ${sala}] Se han emitido todos los números del 1 al ${qty}`);
-            clearInterval(intervaloId);
-            intervalosActivos.delete(sala);
-            return;
-        }
+        // Configurar el intervalo para todos los números, incluyendo el primero
+        const intervaloId = setInterval(async () => {
+            const numero = generarNumeroUnico(numerosEmitidos, qty);
+            
+            if (numero === null) {
+                console.log(`[Sala ${sala}] Se han emitido todos los números del 1 al ${qty}`);
+                clearInterval(intervaloId);
+                intervalosActivos.delete(sala);
+                return;
+            }
 
-        numerosEmitidos.add(numero);
-        const secuencia = numerosEmitidos.size;
-        
-        console.log(`[Sala ${sala}] Número emitido: ${numero} (${secuencia}/${qty})`);
-        await emitirNumero(sala, numero, secuencia);
-    }, intervalo * 1000);
+            numerosEmitidos.add(numero);
+            const secuencia = numerosEmitidos.size;
+            
+            console.log(`[Sala ${sala}] Número emitido: ${numero} (${secuencia}/${qty})`);
+            await emitirNumero(sala, numero, secuencia);
+        }, intervalo * 1000);
 
-    intervalosActivos.set(sala, {
-        intervaloId,
-        numerosEmitidos
-    });
+        intervalosActivos.set(sala, {
+            intervaloId,
+            numerosEmitidos
+        });
+    }, secs_to_start * 1000);
 }
+
 module.exports = {
     iniciarCantante
 };
